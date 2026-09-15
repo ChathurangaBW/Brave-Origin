@@ -1,10 +1,82 @@
 # Brave Origin Fix
 
-![Screenshot placeholder](docs/screenshot-placeholder.svg)
+[![Release v1.0.0](https://img.shields.io/github/v/release/ChathurangaBW/Brave-Origin?label=release)](https://github.com/ChathurangaBW/Brave-Origin/releases/tag/v1.0.0)
+[![Windows](https://img.shields.io/badge/Windows-10%2F11%20x64-blue?logo=windows)](https://github.com/ChathurangaBW/Brave-Origin/releases/tag/v1.0.0)
+[![Linux](https://img.shields.io/badge/Linux-CLI%20x64-orange?logo=linux)](https://github.com/ChathurangaBW/Brave-Origin/releases/tag/v1.0.0)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
 A native utility for diagnosing and repairing the **local-state shape** used by Brave Origin community builds. Version 1.0.0 provides a polished, DPI-aware dark GUI on Windows plus a scriptable CLI on Windows and Linux.
 
 > **Unofficial:** this project is not affiliated with Brave Software. It does not validate, acquire, or issue legitimate purchase IDs. It applies a community local-state repair shape only. The binaries make no network calls.
+
+![Brave Origin Repair GUI](docs/images/gui-main.png)
+
+*The Brave Origin Repair GUI on Windows — per-channel status cards with Scan, guarded Apply Repair, backup Restore, and an activity log.*
+
+## Download (v1.0.0)
+
+Get everything from the [**v1.0.0 release page**](https://github.com/ChathurangaBW/Brave-Origin/releases/tag/v1.0.0), or via direct links:
+
+- [BraveOriginFix.exe](https://github.com/ChathurangaBW/Brave-Origin/releases/download/v1.0.0/BraveOriginFix.exe) — GUI repair tool (Windows x64)
+- [BraveOriginFix-cli.exe](https://github.com/ChathurangaBW/Brave-Origin/releases/download/v1.0.0/BraveOriginFix-cli.exe) — CLI repair tool (Windows x64)
+- [brave-origin-fix-linux](https://github.com/ChathurangaBW/Brave-Origin/releases/download/v1.0.0/brave-origin-fix-linux) — CLI repair tool (Linux x64)
+- [SHA256SUMS.txt](https://github.com/ChathurangaBW/Brave-Origin/releases/download/v1.0.0/SHA256SUMS.txt) — SHA-256 checksums for all assets
+
+Verify your downloads against `SHA256SUMS.txt` from the release (see below) rather than any hash copied elsewhere.
+
+## Quick-start
+
+1. Launch `BraveOriginFix.exe` and press **Scan**.
+2. If a channel badge says **Needs repair**, select it and press **Apply Repair**, then confirm the warning.
+3. Keep the timestamped backup path reported on success. Use **Restore Backup** to roll back if needed.
+
+Prefer the terminal? `BraveOriginFix-cli.exe --check`, then `--dry-run`, then `--apply --channel <name>` (details below).
+
+## Screenshots
+
+### GUI (Windows)
+
+![Brave Origin Repair GUI](docs/images/gui-main.png)
+
+*Real capture of the v1.0.0 GUI (`BraveOriginFix.exe`) at startup on Windows.*
+
+### CLI `--check` (Windows)
+
+Console-window capture is unavailable in headless environments, so the exact console output is reproduced below verbatim (real output from `BraveOriginFix-cli.exe --check` on Windows):
+
+```text
+=== BraveOriginFix ===
+Mode: CHECK (read-only)
+LOCALAPPDATA = C:\Users\Sniffer\AppData\Local
+
+[Brave-Origin]
+  File          : C:\Users\Sniffer\AppData\Local\BraveSoftware\Brave-Origin\User Data\Local State
+  Status        : NOT-FOUND (skipped)
+  Processes     : 0 brave.exe on install path, 0 matching this profile
+
+[Brave-Origin-Beta]
+  File          : C:\Users\Sniffer\AppData\Local\BraveSoftware\Brave-Origin-Beta\User Data\Local State
+  Status        : OK
+  Size          : 11157 bytes
+  MTime         : 2026-09-15 22:52:17
+  purchase_validated : true
+  skus.state keys    : 1
+  Processes     : 0 brave.exe on install path, 0 matching this profile
+  Result        : OK (no changes written)
+
+[Brave-Origin-Nightly]
+  File          : C:\Users\Sniffer\AppData\Local\BraveSoftware\Brave-Origin-Nightly\User Data\Local State
+  Status        : NOT-FOUND (skipped)
+  Processes     : 0 brave.exe on install path, 0 matching this profile
+
+=== SUMMARY ===
+Mode: CHECK (read-only)
+  Brave-Origin        : NOT-FOUND
+  Brave-Origin-Beta   : OK
+  Brave-Origin-Nightly: NOT-FOUND
+Result: nothing to do (all channels OK / not present)
+Exit code: 0
+```
 
 ## Features
 
@@ -91,7 +163,7 @@ This invokes `C:\msys64\mingw64\bin\g++.exe` in C++17 mode with `-static -static
 
 ## QA and artifacts
 
-Run `qa-e2e.ps1`; see [docs/QA.md](docs/QA.md) and `qa-results/summary.md`. Tests cover Q1–Q12, malformed JSON, unrelated-key preservation, byte-exact restore, backup collisions, real-profile hash/PID safety, DLL imports, and GUI WM_CLOSE smoke.
+Run `qa-e2e.ps1`; see [docs/QA.md](docs/QA.md), the full evidence bundle under [docs/qa](docs/qa), and `qa-results/summary.md`. Tests cover Q1–Q12, malformed JSON, unrelated-key preservation, byte-exact restore, backup collisions, real-profile hash/PID safety, DLL imports, and GUI WM_CLOSE smoke.
 
 Release SHA-256 checksums are published as `SHA256SUMS.txt` on the [v1.0.0 release](https://github.com/ChathurangaBW/Brave-Origin/releases/tag/v1.0.0). Verify downloaded artifacts against that file rather than any hash copied into this README.
 
