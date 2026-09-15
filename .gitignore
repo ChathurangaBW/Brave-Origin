@@ -1,0 +1,6 @@
+/build/
+/qa-work/
+/qa-results/
+/build.log
+*.bak
+*.tmp

@@ -1,0 +1,30 @@
+﻿$ git status --short
+ M README.md
+?? .gitignore
+?? CHANGELOG.md
+?? LICENSE
+?? build.ps1
+?? dist/
+?? docs/
+?? qa-e2e.ps1
+?? resources/
+?? src/
+
+$ git log --oneline -5
+5fb43a8 Create README.md
+
+$ git diff --check
+(clean — no whitespace errors)
+
+$ git diff --stat
+ README.md | 96 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 94 insertions(+), 2 deletions(-)
+
+$ git stash list
+(empty)
+
+$ git ls-files | Measure-Object count
+1
+
+$ git diff --cached --name-only (staged)
+(none — zero staged)
