@@ -2,7 +2,7 @@
 
 ![Screenshot placeholder](docs/screenshot-placeholder.svg)
 
-A native Windows utility for diagnosing and repairing the **local-state shape** used by Brave Origin community builds. Version 1.0.0 provides a polished, DPI-aware dark GUI plus a scriptable CLI.
+A native utility for diagnosing and repairing the **local-state shape** used by Brave Origin community builds. Version 1.0.0 provides a polished, DPI-aware dark GUI on Windows plus a scriptable CLI on Windows and Linux.
 
 > **Unofficial:** this project is not affiliated with Brave Software. It does not validate, acquire, or issue legitimate purchase IDs. It applies a community local-state repair shape only. The binaries make no network calls.
 
@@ -13,21 +13,49 @@ A native Windows utility for diagnosing and repairing the **local-state shape** 
 - Shared in-process C++ engine—GUI operations never shell out.
 - Preserved automation: `--check`, `--dry-run`, `--apply`, `--channel`, `--restore`, `--help`.
 - Windows system DLLs only; static libgcc/libstdc++ linkage.
+- Linux CLI port with identical flags, exit codes, and safety semantics (CLI only; the GUI is Windows-only).
 
-## Install and use
+## Install and use (GitHub Releases)
 
-Download/copy `dist/BraveOriginFix.exe` and launch it normally. Select a channel, Scan, and use **Apply Repair** only when the badge says **Needs repair**. Confirm the warning. The success dialog reports the timestamped backup path. **Restore Backup** accepts only `Local State.bak.*` and requires valid JSON; restored content need not contain purchase markers.
+Download the `v1.0.0` assets from the [Releases page](https://github.com/ChathurangaBW/Brave-Origin/releases/tag/v1.0.0) and verify checksums against `SHA256SUMS.txt`:
+
+```powershell
+Get-FileHash .\BraveOriginFix.exe -Algorithm SHA256
+Get-FileHash .\BraveOriginFix-cli.exe -Algorithm SHA256
+```
+
+```bash
+sha256sum -c SHA256SUMS.txt
+```
+
+### Windows
+
+Launch `BraveOriginFix.exe` normally. Select a channel, Scan, and use **Apply Repair** only when the badge says **Needs repair**. Confirm the warning. The success dialog reports the timestamped backup path. **Restore Backup** accepts only `Local State.bak.*` and requires valid JSON; restored content need not contain purchase markers.
 
 For automation use the console build:
 
 ```powershell
-.\dist\BraveOriginFix-cli.exe --check
-.\dist\BraveOriginFix-cli.exe --dry-run --channel Brave-Origin-Beta
-.\dist\BraveOriginFix-cli.exe --apply --channel Brave-Origin
-.\dist\BraveOriginFix-cli.exe --restore "C:\...\Local State.bak.20260915-120000"
+.\BraveOriginFix-cli.exe --check
+.\BraveOriginFix-cli.exe --dry-run --channel Brave-Origin-Beta
+.\BraveOriginFix-cli.exe --apply --channel Brave-Origin
+.\BraveOriginFix-cli.exe --restore "C:\...\Local State.bak.20260915-120000"
 ```
 
 Exit codes retain the vetted contract: `0` nothing broken/nothing to do, `1` BROKEN detected or a channel patched, `2` environmental/input error. The GUI EXE recognizes the same flags, but `BraveOriginFix-cli.exe` is the supported choice for reliable console output/redirection.
+
+### Linux (CLI only — the GUI is Windows-only)
+
+Channel profiles live under `$HOME/.config/BraveSoftware/<Brave-Origin|Brave-Origin-Beta|Brave-Origin-Nightly>/User Data/`. The Linux CLI enforces the same safety model: check/dry-run never write, apply patches only a selected **BROKEN** channel, processes are matched by exact `--user-data-dir` tokens read from `/proc` (unreadable command lines fail closed), shutdown is SIGTERM with a SIGKILL fallback after revalidation, and writes are atomic temp+fsync+rename.
+
+```bash
+chmod +x brave-origin-fix-linux
+./brave-origin-fix-linux --check
+./brave-origin-fix-linux --dry-run --channel Brave-Origin-Beta
+./brave-origin-fix-linux --apply --channel Brave-Origin
+./brave-origin-fix-linux --restore "$HOME/.config/BraveSoftware/Brave-Origin/User Data/Local State.bak.20260915-120000"
+```
+
+Exit codes are identical to Windows: `0` nothing broken/nothing to do, `1` BROKEN detected or a channel patched, `2` environmental/input error.
 
 ## Exact safety model
 
@@ -65,14 +93,7 @@ This invokes `C:\msys64\mingw64\bin\g++.exe` in C++17 mode with `-static -static
 
 Run `qa-e2e.ps1`; see [docs/QA.md](docs/QA.md) and `qa-results/summary.md`. Tests cover Q1–Q12, malformed JSON, unrelated-key preservation, byte-exact restore, backup collisions, real-profile hash/PID safety, DLL imports, and GUI WM_CLOSE smoke.
 
-Release SHA-256 checksums are generated at `qa-results/checksums.txt`; use `Get-FileHash .\dist\*.exe -Algorithm SHA256` to verify.
-
-Current locally built artifacts (2026-09-15, source aggregate `10F7824BC32602EC1C71D0FA1BF7D6FFB9EFE5A2BF9EEF5BC0E07FB09CD23FB0`):
-
-| Artifact | SHA-256 |
-|---|---|
-| `BraveOriginFix.exe` | `7141CA0BF729DD6C4541EBD36246FAAC422737D706FC0878BDF0A29900A4A56B` |
-| `BraveOriginFix-cli.exe` | `07A17C096B9E9308A2EDB95B1E25DC465C5CCDFD14B6147880CB518A1BD342B1` |
+Release SHA-256 checksums are published as `SHA256SUMS.txt` on the [v1.0.0 release](https://github.com/ChathurangaBW/Brave-Origin/releases/tag/v1.0.0). Verify downloaded artifacts against that file rather than any hash copied into this README.
 
 ### Verified test matrix
 
