@@ -9,12 +9,14 @@ changes Brave's own files.
 > licensing.
 
 
-## Download 
+## Download v1.2
 
 Grab the single-file app from the
 [Releases page](https://github.com/ChathurangaBW/Brave-Origin/releases/latest):
 
 **`BraveOriginPatch.exe`** — no installer, no dependencies, no network. Just run it.
+
+**v1.2:** fixes the **Open Brave Origin** button (proven: Brave window count +1).
 
 ## How to use
 
