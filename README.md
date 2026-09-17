@@ -18,6 +18,9 @@ Grab the single-file app from the
 
 ## How to use
 
+> **IMPORTANT:** close Brave Origin completely before clicking **Patch** —
+> patching while Brave is running will fail with an error.
+
 1. Close Brave Origin first and save any browser work. Then open
    `BraveOriginPatch.exe`.
 2. Click **Scan**. This is safe and read-only — it only looks at local settings
@@ -27,9 +30,16 @@ Grab the single-file app from the
 3. If you see **Needs repair**, click **Patch now**. A timestamped backup is
    saved first. If you click Cancel instead, nothing happens.
 
-![The app after Scan](docs/images/patch-main.png)
+![Needs repair — click Patch now](docs/images/brand-scan.png)
 
-![Needs repair — click Patch now](docs/images/patch-ready.png)
+## If Brave Origin lives somewhere else
+
+The bar at the bottom of the window shows the folder the app is checking. If you
+installed Brave Origin on another drive, click **Change...** and pick the
+`BraveSoftware` folder in its new location. Click **Reset** to go back to the
+default folder.
+
+![The folder bar, with Change... and Reset](docs/images/brand-fresh.png)
 
 ## What will happen
 

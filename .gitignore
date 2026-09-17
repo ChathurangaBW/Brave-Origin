@@ -4,3 +4,10 @@ qa-work*/
 *.bak
 *.tmp
 /build.log
+
+# Presentation-only public tree: keep source, resources and local scripts out.
+src/
+tools/
+resources/
+*.ps1
+qa-results/
