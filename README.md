@@ -1,4 +1,8 @@
-<img width="474" height="299" alt="Screenshot 2026-09-17 231941" src="https://github.com/user-attachments/assets/7faaa892-6cc9-4807-8544-4febf5c501e3" /># Brave Origin Patch
+# Brave Origin Patch
+
+<p align="center">
+  <img width="474" height="299" alt="Screenshot 2026-09-17 231941" src="https://github.com/user-attachments/assets/7faaa892-6cc9-4807-8544-4febf5c501e3" />
+</p>
 
 A small Windows app that checks a Brave Origin community install and repairs its
 local settings when they need repair. It makes no network calls and never
@@ -7,7 +11,6 @@ changes Brave's own files.
 > **Unofficial community utility** — not affiliated with Brave Software. It
 > repairs a community local-state shape only and does not provide genuine
 > licensing.
-
 
 ## Download v1.2
 
@@ -32,8 +35,7 @@ Grab the single-file app from the
 3. If you see **Needs repair**, click **Patch now**. A timestamped backup is
    saved first. If you click Cancel instead, nothing happens.
 
-![Needs repair — click Patch now](<img width="474" height="299" alt="Screenshot 2026-09-17 231941" src="https://github.com/user-attachments/assets/49bd976e-6a8b-4889-bb1d-147ad2ab70d3" />
-)
+![Needs repair — click Patch now](docs/images/patch-ready.png)
 
 ## If Brave Origin lives somewhere else
 
@@ -41,8 +43,6 @@ The bar at the bottom of the window shows the folder the app is checking. If you
 installed Brave Origin on another drive, click **Change...** and pick the
 `BraveSoftware` folder in its new location. Click **Reset** to go back to the
 default folder.
-
-![The folder bar, with Change... and Reset])
 
 ## What will happen
 
