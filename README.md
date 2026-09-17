@@ -8,9 +8,8 @@ changes Brave's own files.
 > repairs a community local-state shape only and does not provide genuine
 > licensing.
 
-![Brave Origin Patch](docs/images/mini-lion-titlebar.png)
 
-## Download v1.1
+## Download 
 
 Grab the single-file app from the
 [Releases page](https://github.com/ChathurangaBW/Brave-Origin/releases/latest):
