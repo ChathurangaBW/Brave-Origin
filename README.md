@@ -1,8 +1,6 @@
 # Brave Origin Patch
 
-<p align="center">
-  <img width="474" height="299" alt="Screenshot 2026-09-17 231941" src="https://github.com/user-attachments/assets/7faaa892-6cc9-4807-8544-4febf5c501e3" />
-</p>
+<p align="center"><img src="docs/images/patch-ready.png" alt="Brave Origin Patch - Ready" width="474" /></p>
 
 A small Windows app that checks a Brave Origin community install and repairs its
 local settings when they need repair. It makes no network calls and never
@@ -34,8 +32,6 @@ Grab the single-file app from the
    - **Needs repair** — a setting needs attention, so go to step 3.
 3. If you see **Needs repair**, click **Patch now**. A timestamped backup is
    saved first. If you click Cancel instead, nothing happens.
-
-![Needs repair — click Patch now](docs/images/patch-ready.png)
 
 ## If Brave Origin lives somewhere else
 
