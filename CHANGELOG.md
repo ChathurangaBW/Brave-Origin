@@ -1,8 +1,10 @@
 # Changelog
 
+## Mini consolidation - 2026-09-17
+- Consolidated the repo to the mini-only repair app: `src/mini_gui.cpp` plus the shared engine (`src/engine.cpp` / `src/engine.h`), lion icon resources, and a single-target `build.ps1` producing `dist/BraveOriginMini.exe`.
+- Removed the full GUI, CLI entry points, Linux port, tests, and QA fixtures/docs.
+
 ## 1.0.0 - 2026-09-15
-- Added a DPI-aware native Win32 dark interface with channel cards, guarded repair, restore picker, activity log, and busy state.
-- Preserved the vetted command-line engine and safety behavior in a shared C++17 core.
-- Added static MSYS2/MinGW builds, manifest/version resources, documentation, and isolated end-to-end QA.
-- Added a Linux CLI port (`brave-origin-fix-linux`) sharing the engine core semantics: `$HOME/.config/BraveSoftware/<channel>/` profiles, `/proc`-based exact `--user-data-dir` matching with fail-closed unreadable command lines, SIGTERM-then-SIGKILL shutdown, and atomic temp+fsync+rename writes. CLI only; the GUI remains Windows-only.
-- Release distribution is via GitHub Releases (Windows GUI + CLI, Linux CLI, SHA256SUMS.txt); build outputs under `dist/` are no longer tracked in git.
+- Added the shared C++17 engine: local-state scan, guarded repair with timestamped backups, atomic writes, and verification.
+- Added the mini Scan + Patch window reusing the engine.
+- Added static MSYS2/MinGW builds with manifest/version resources and the lion icon.

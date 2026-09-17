@@ -622,40 +622,71 @@ static std::vector<ProcInfo> enumerateChannelProcesses(const std::wstring& chann
     return res;
 }
 // --- graceful close ------------------------------------------------------
+struct CloseWindowContext { DWORD target; bool posted; DWORD postError; };
 static BOOL CALLBACK enumCloseProc(HWND hwnd, LPARAM lp) {
-    DWORD target = (DWORD)lp;
+    CloseWindowContext* ctx = (CloseWindowContext*)lp;
     DWORD wp = 0;
     GetWindowThreadProcessId(hwnd, &wp);
-    if (wp == target) PostMessageW(hwnd, WM_CLOSE, 0, 0);
+    if (wp == ctx->target) {
+        if (PostMessageW(hwnd, WM_CLOSE, 0, 0)) ctx->posted = true;
+        else if (!ctx->postError) ctx->postError = GetLastError(); // capture immediately
+    }
     return TRUE;
 }
-static bool revalidateProcess(const ProcInfo& expected,const std::wstring& profilePath,const std::wstring& defaultProfile,const std::wstring& ourLAD,HANDLE h) {
-    wchar_t b[32768]; DWORD n=32768; if(!QueryFullProcessImageNameW(h,0,b,&n)) return false;
+enum class CloseIdentityStatus { NotChecked, Matched, Ambiguous, Mismatched };
+struct CloseProcessResult {
+    bool success = false;
+    DWORD pid = 0;
+    const char* stage = "None";
+    DWORD error = ERROR_SUCCESS;       // captured at the failing API, never inferred later
+    DWORD waitResult = WAIT_FAILED;
+    bool wmClosePosted = false;
+    bool exited = false;
+    bool hardKilled = false;
+    CloseIdentityStatus identity = CloseIdentityStatus::NotChecked;
+};
+static const char* closeIdentityName(CloseIdentityStatus s) {
+    switch(s) { case CloseIdentityStatus::Matched:return "matched"; case CloseIdentityStatus::Ambiguous:return "ambiguous"; case CloseIdentityStatus::Mismatched:return "mismatched"; default:return "not-checked"; }
+}
+static bool revalidateProcess(const ProcInfo& expected,const std::wstring& profilePath,const std::wstring& defaultProfile,const std::wstring& ourLAD,HANDLE h,CloseProcessResult& result) {
+    wchar_t b[32768]; DWORD n=32768; if(!QueryFullProcessImageNameW(h,0,b,&n)) { result.error=GetLastError(); return false; }
     std::wstring current(b,n), a, e; if(!canonicalExisting(current,false,a)||!canonicalExisting(expected.imagePath,false,e)||a!=e) return false;
     ProcInfo fresh; fresh.pid=expected.pid; fresh.imagePath=current;
     if(!getProcessInfo(fresh.pid,fresh.cmdline,fresh.cmdlineKnown,fresh.envLocalAppData,fresh.envKnown)) return false;
-    fresh.identityConclusive=assessProcessIdentity(fresh,profilePath,defaultProfile,ourLAD); return fresh.identityConclusive&&fresh.profileMatch;
+    fresh.identityConclusive=assessProcessIdentity(fresh,profilePath,defaultProfile,ourLAD);
+    result.identity = !fresh.identityConclusive ? CloseIdentityStatus::Ambiguous : (fresh.profileMatch ? CloseIdentityStatus::Matched : CloseIdentityStatus::Mismatched);
+    return fresh.identityConclusive&&fresh.profileMatch;
 }
 
-static bool closeProcessGracefully(const ProcInfo& pi,const std::wstring& profilePath,const std::wstring& defaultProfile,const std::wstring& ourLAD,DWORD waitMs, bool& hardKilled, bool& closed) {
-    hardKilled = false;
-    closed = false;
+static CloseProcessResult closeProcessGracefully(const ProcInfo& pi,const std::wstring& profilePath,const std::wstring& defaultProfile,const std::wstring& ourLAD,DWORD waitMs) {
+    CloseProcessResult result; result.pid=pi.pid;
+    if(processFault(L"open-race")) Sleep(250); // fixture helper exits after enumeration; OpenProcess must report its own error
     HANDLE h = OpenProcess(SYNCHRONIZE | PROCESS_TERMINATE | PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pi.pid);
-    if (!h) return false;
-    if(!revalidateProcess(pi,profilePath,defaultProfile,ourLAD,h)){CloseHandle(h);SetLastError(ERROR_ACCESS_DENIED);return false;}
-    EnumWindows(enumCloseProc, (LPARAM)pi.pid);
-    DWORD r = WaitForSingleObject(h, waitMs);
-    if (r == WAIT_OBJECT_0) { closed = true; CloseHandle(h); return true; }
-    if(!revalidateProcess(pi,profilePath,defaultProfile,ourLAD,h)){CloseHandle(h);SetLastError(ERROR_ACCESS_DENIED);return false;}
-    if (TerminateProcess(h, 0)) {
-        hardKilled = true;
-        WaitForSingleObject(h, 5000);
-        closed = WaitForSingleObject(h,5000)==WAIT_OBJECT_0;
-        CloseHandle(h);
-        return closed;
-    }
+    if (!h) { result.stage="OpenProcess"; result.error=GetLastError(); return result; }
+    result.stage="Revalidation";
+    if(!revalidateProcess(pi,profilePath,defaultProfile,ourLAD,h,result)){if(!result.error)result.error=ERROR_ACCESS_DENIED;CloseHandle(h);return result;}
+    CloseWindowContext ctx={pi.pid,false,ERROR_SUCCESS};
+    if(!EnumWindows(enumCloseProc, (LPARAM)&ctx)){result.stage="EnumWindows";result.error=GetLastError();CloseHandle(h);return result;}
+    result.wmClosePosted=ctx.posted;
+    if(ctx.postError){result.stage="PostMessage";result.error=ctx.postError;CloseHandle(h);return result;}
+    result.stage="WaitForSingleObject";
+    result.waitResult=processFault(L"terminate-fail") ? WAIT_TIMEOUT : WaitForSingleObject(h, waitMs);
+    if (result.waitResult == WAIT_OBJECT_0) { result.exited=true; result.success=true; CloseHandle(h); return result; }
+    if (result.waitResult == WAIT_FAILED) { result.error=GetLastError(); CloseHandle(h); return result; }
+    result.stage="Revalidation";
+    if(!revalidateProcess(pi,profilePath,defaultProfile,ourLAD,h,result)){if(!result.error)result.error=ERROR_ACCESS_DENIED;CloseHandle(h);return result;}
+    result.stage="TerminateProcess";
+    if(processFault(L"terminate-fail")){result.error=ERROR_ACCESS_DENIED;CloseHandle(h);return result;}
+    if (!TerminateProcess(h, 0)) { result.error=GetLastError(); CloseHandle(h); return result; }
+    result.hardKilled = true;
+    result.stage="WaitForSingleObject";
+    result.waitResult=WaitForSingleObject(h,5000);
+    result.exited=result.waitResult==WAIT_OBJECT_0;
+    if(!result.exited && result.waitResult==WAIT_FAILED) result.error=GetLastError();
+    if(!result.exited && !result.error) result.error=ERROR_TIMEOUT;
+    result.success=result.exited;
     CloseHandle(h);
-    return false;
+    return result;
 }
 
 static bool launchProcess(const std::wstring& exePath, const std::wstring& cmdline, const std::wstring& workDir) {
@@ -899,6 +930,11 @@ static std::string modeName(const Options& o) {
 static int doPatch(ChannelInfo& ci, const Options& o, const std::wstring& ourLAD) {
     std::string ch = toUtf8(ci.name);
 
+    // Fail closed only on UNREADABLE/AMBIGUOUS identity. A conclusively
+    // MISMATCHED process (different profile) cannot hold the target file and
+    // is safely ignored; blocking on it breaks fixture/reinstall flows while
+    // an unrelated Brave profile is running. Only profileMatch processes are
+    // ever closed (see matches loop below).
     if(!o.dryRun){for(size_t i=0;i<ci.procs.size();i++)if(!ci.procs[i].identityConclusive){std::printf("  ERROR: channel process PID %lu has unreadable/ambiguous identity; mutation aborted\n",(unsigned long)ci.procs[i].pid);return -1;}
         if(processFault(L"unreadable")){std::printf("  ERROR: injected unreadable channel candidate; mutation aborted\n");return -1;}
         if(processFault(L"shutdown")){std::printf("  ERROR: injected shutdown failure; mutation aborted\n");return -1;}}
@@ -943,10 +979,11 @@ static int doPatch(ChannelInfo& ci, const Options& o, const std::wstring& ourLAD
     bool anyHardKill = false;
     if (!matches.empty()) {
         for (size_t i = 0; i < matches.size(); ++i) {
-            bool hard = false, closed = false;
             std::wstring defaultProfile=ourLAD+L"\\BraveSoftware\\"+ci.name+L"\\User Data";
-            if(!closeProcessGracefully(matches[i],ci.profilePath,defaultProfile,ourLAD,5000,hard,closed)||!closed){std::printf("    ERROR: PID %lu could not be safely closed/confirmed (err=%lu); mutation aborted\n",(unsigned long)matches[i].pid,(unsigned long)GetLastError());return -1;}
-            ++closedCount; if(hard) anyHardKill=true;
+            CloseProcessResult close=closeProcessGracefully(matches[i],ci.profilePath,defaultProfile,ourLAD,5000);
+            std::printf("    close-result: PID %lu stage=%s error=%lu wait=%lu wm_close=%s exited=%s identity=%s\n",(unsigned long)close.pid,close.stage,(unsigned long)close.error,(unsigned long)close.waitResult,close.wmClosePosted?"yes":"no",close.exited?"yes":"no",closeIdentityName(close.identity));
+            if(!close.success||!close.exited){std::printf("    ERROR: PID %lu could not be safely closed/confirmed (stage=%s err=%lu); mutation aborted\n",(unsigned long)close.pid,close.stage,(unsigned long)close.error);return -1;}
+            ++closedCount; if(close.hardKilled) anyHardKill=true;
         }
         std::printf("    gracefully closed %d/%d matching process(es)%s\n",
                     closedCount, (int)matches.size(), anyHardKill ? " (some needed hard-kill fallback)" : "");
@@ -1002,6 +1039,9 @@ static int doPatch(ChannelInfo& ci, const Options& o, const std::wstring& ourLAD
     if (!v2.ok()) { std::printf("    ERROR: post-write verification failed\n"); return -1; }
 
     if (closedCount > 0 && o.apply) {
+        if (envW(L"BRAVEORIGINFIX_TEST_MODE") == L"1") {
+            std::printf("    relaunch suppressed (test mode)\n");
+        } else {
         std::wstring exe = resolveBraveExe(ci.name, capturedExe);
         if (exe.empty()) {
             std::printf("    WARNING: brave.exe not found for relaunch\n");
@@ -1019,6 +1059,7 @@ static int doPatch(ChannelInfo& ci, const Options& o, const std::wstring& ourLAD
             } else {
                 std::printf("    WARNING: relaunch failed (err=%lu)\n", (unsigned long)GetLastError());
             }
+        }
         }
     } else if (closedCount > 0 && !o.apply) {
         std::printf("    not relaunching (--apply not given)\n");
@@ -1056,7 +1097,7 @@ static int doRestore(const Options& o) {
         return 0;
     }
     if(processFault(L"unreadable")||processFault(L"shutdown")){std::printf("ERROR: injected unidentified/shutdown channel process; restore aborted\n");return 2;}
-    std::wstring profile=dirnameOf(target);std::vector<ProcInfo> procs=enumerateChannelProcesses(channel,profile,lad);for(size_t i=0;i<procs.size();i++)if(!procs[i].identityConclusive){std::printf("ERROR: channel process PID %lu has unreadable/ambiguous identity; restore aborted\n",(unsigned long)procs[i].pid);return 2;}for(size_t i=0;i<procs.size();i++)if(procs[i].profileMatch){bool hard=false,closed=false;if(!closeProcessGracefully(procs[i],profile,profile,lad,5000,hard,closed)||!closed){std::printf("ERROR: PID %lu could not be safely closed; restore aborted\n",(unsigned long)procs[i].pid);return 2;}}
+    std::wstring profile=dirnameOf(target);std::vector<ProcInfo> procs=enumerateChannelProcesses(channel,profile,lad);for(size_t i=0;i<procs.size();i++)if(!procs[i].identityConclusive){std::printf("ERROR: channel process PID %lu has unreadable/ambiguous identity; restore aborted\n",(unsigned long)procs[i].pid);return 2;}for(size_t i=0;i<procs.size();i++)if(procs[i].profileMatch){CloseProcessResult close=closeProcessGracefully(procs[i],profile,profile,lad,5000);std::printf("close-result: PID %lu stage=%s error=%lu wait=%lu wm_close=%s exited=%s identity=%s\n",(unsigned long)close.pid,close.stage,(unsigned long)close.error,(unsigned long)close.waitResult,close.wmClosePosted?"yes":"no",close.exited?"yes":"no",closeIdentityName(close.identity));if(!close.success||!close.exited){std::printf("ERROR: PID %lu could not be safely closed (stage=%s err=%lu); restore aborted\n",(unsigned long)close.pid,close.stage,(unsigned long)close.error);return 2;}}
     std::vector<ProcInfo> finalCandidates=enumerateChannelProcesses(channel,profile,lad);for(size_t i=0;i<finalCandidates.size();i++)if(!finalCandidates[i].identityConclusive){std::printf("ERROR: channel candidate unidentified before restore mutation\n");return 2;}if(processFault(L"revalidation")){std::printf("ERROR: injected PID/image revalidation change; restore aborted\n");return 2;}
     FileIdentity sourceNow,targetNow;HANDLE sourceHandle=INVALID_HANDLE_VALUE,targetHandle=INVALID_HANDLE_VALUE;if(!getFileIdentity(bak,sourceNow,&sourceHandle)||!getFileIdentity(target,targetNow,&targetHandle)||!sameIdentity(sourceNow,FileIdentity{si.dwVolumeSerialNumber,si.nFileIndexHigh,si.nFileIndexLow})||!sameIdentity(targetNow,FileIdentity{ti.dwVolumeSerialNumber,ti.nFileIndexHigh,ti.nFileIndexLow})){if(sourceHandle!=INVALID_HANDLE_VALUE)CloseHandle(sourceHandle);if(targetHandle!=INVALID_HANDLE_VALUE)CloseHandle(targetHandle);std::printf("ERROR: source/target identity changed before mutation\n");return 2;}
     auto readHeld=[](HANDLE h,std::string& out){LARGE_INTEGER z={};if(!GetFileSizeEx(h,&z)||z.QuadPart<0||z.QuadPart>0x7fffffff)return false;out.resize((size_t)z.QuadPart);SetFilePointer(h,0,nullptr,FILE_BEGIN);DWORD total=0;while(total<out.size()){DWORD got=0;if(!ReadFile(h,&out[total],(DWORD)(out.size()-total),&got,nullptr)||!got)return false;total+=got;}return true;};
@@ -1070,6 +1111,7 @@ static int doRestore(const Options& o) {
                 (int)v.stateKeys, v.err.empty() ? "" : (" err=" + v.err).c_str());
     if (!v.parsed) { std::printf("ERROR: restored file is not valid JSON\n"); return 2; }
     if (!v.ok()) std::printf("NOTE: restored file is valid JSON but has BROKEN purchase markers (expected for a pre-patch backup)\n");
+    if (envW(L"BRAVEORIGINFIX_TEST_MODE") == L"1") std::printf("relaunch suppressed (test mode)\n");
     std::printf("Restore OK (backup bytes copied and parsed)\n");
     return 0;
 }
@@ -1126,6 +1168,8 @@ static int runOptions(const Options& o) {
         if (!present) {
             info.status = "NOT-FOUND";
             std::printf("  Status        : NOT-FOUND (skipped)\n");
+            std::printf("  Guidance      : channel not installed; install Brave Origin %s or re-run with --channel <name>\n",
+                        toUtf8(info.name).c_str());
             std::printf("  Processes     : %d brave.exe on install path, %d matching this profile\n",
                         (int)info.procs.size(), profMatches);
             continue;

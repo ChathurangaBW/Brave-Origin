@@ -1,4 +1,8 @@
 #include <windows.h>
+#ifndef IDI_MAIN
+#define IDI_MAIN 101
+#endif
+IDI_MAIN ICON "brave-lion.ico"
 1 RT_MANIFEST "app.manifest"
 1 VERSIONINFO
  FILEVERSION 1,0,0,0

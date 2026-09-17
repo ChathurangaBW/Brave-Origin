@@ -1,7 +1,6 @@
-/build/
-/qa-work/
-/qa-results/
-/build.log
 /dist/
+/build/
+qa-work*/
 *.bak
 *.tmp
+/build.log
