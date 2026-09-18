@@ -10,14 +10,15 @@ changes Brave's own files.
 > repairs a community local-state shape only and does not provide genuine
 > licensing.
 
-## Download v1.2
+## Download v1.3
 
 Grab the single-file app from the
 [Releases page](https://github.com/ChathurangaBW/Brave-Origin/releases/latest):
 
 **`BraveOriginPatch.exe`** — no installer, no dependencies, no network. Just run it.
 
-**v1.2:** fixes the **Open Brave Origin** button (proven: Brave window count +1).
+**v1.3:** supports direct Brave Origin folders on other drives and opens the
+selected profile reliably.
 
 ## How to use
 
@@ -39,6 +40,9 @@ The bar at the bottom of the window shows the folder the app is checking. If you
 installed Brave Origin on another drive, click **Change...** and pick the
 `BraveSoftware` folder in its new location. Click **Reset** to go back to the
 default folder.
+
+Choose the real folder directly. Shortcuts and linked folders are refused so
+the app cannot read or change an unexpected location.
 
 ## What will happen
 
